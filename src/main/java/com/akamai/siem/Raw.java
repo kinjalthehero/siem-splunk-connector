@@ -3,7 +3,11 @@ package com.akamai.siem;
 import java.io.UnsupportedEncodingException;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Map;
 
+import com.fasterxml.jackson.annotation.JsonAnyGetter;
+import com.fasterxml.jackson.annotation.JsonAnySetter;
 import com.fasterxml.jackson.annotation.JsonRawValue;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -18,6 +22,9 @@ public class Raw {
   private AttackData attackData;
   private HttpMessage httpMessage;
   private Geo geo;
+  private UserRiskData userRiskData;
+
+  private Map<String, Object> allOtherFields = new HashMap<String, Object>();
 
   // last line only
   private Integer total;
@@ -30,6 +37,9 @@ public class Raw {
     }
     if (httpMessage != null) {
       httpMessage.processRaw();
+    }
+    if (userRiskData != null) {
+      userRiskData.processRaw();
     }
     if (custom != null) {
       custom = decodeCustom(custom);
@@ -172,4 +182,30 @@ public class Raw {
   public void setLimit(Integer limit) {
     this.limit = limit;
   }
+
+  public UserRiskData getUserRiskData() {
+    return userRiskData;
+  }
+
+  public void setUserRiskData(UserRiskData userRiskData) {
+    this.userRiskData = userRiskData;
+  }
+
+  @JsonAnyGetter
+  public Map<String, Object> getAllOtherFields() {
+    return allOtherFields;
+  }
+
+  @JsonAnySetter
+  public void setAllOtherFields(String key, Object value) {
+    this.allOtherFields.put(key, value);
+  }
+
+  @Override
+  public String toString() {
+    return "Raw [type=" + type + ", format=" + format + ", version=" + version + ", custom=" + custom + ", attackData="
+        + attackData + ", httpMessage=" + httpMessage + ", geo=" + geo + ", userRiskData=" + userRiskData
+        + ", allOtherFields=" + allOtherFields + ", total=" + total + ", offset=" + offset + ", limit=" + limit + "]";
+  }
+
 }

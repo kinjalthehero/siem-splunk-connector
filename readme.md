@@ -1,4 +1,10 @@
 # Set up Splunk connector 
+<h2 id="4">Version 1.4.9</h2><a name="4"></a>
+
+>**Update:** Version 1.4.9 of the sample Splunk Connector was released in June 2021. Changes include:
+>*   Feature enhancement "Automatically support new fields provided by SIEM OPEN api response"
+>*   Fixes and improvements
+
 <h2 id="4">Version 1.4.8</h2><a name="4"></a>
 
 >**Update:** Version 1.4.8 of the sample Splunk Connector was released in October 2020. Changes include:
