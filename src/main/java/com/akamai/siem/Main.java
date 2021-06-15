@@ -343,14 +343,8 @@ public class Main extends Script {
 
         ExecutorService consumerExecutorService = Executors.newFixedThreadPool(coreCnt);
         ArrayList<Future<Double>> consumerFutures = new ArrayList<Future<Double>>();
-        for (int i = 0; i < coreCnt; i++) {
-          Future<Double> futureDbl = consumerExecutorService.submit(new Consumer(queue, eventQueue, inputName, ew, i));
-          consumerFutures.add(futureDbl);
-        }
 
         ExecutorService eventExecutorService = Executors.newFixedThreadPool(1);
-        eventExecutorService.submit(new EventConsumer(eventQueue, ew));
-
 
         ew.synchronizedLog(EventWriter.INFO, format("infoMsg = %s, inputName=%s", methodName, inputName));
         ew.synchronizedLog(EventWriter.INFO,
@@ -481,6 +475,12 @@ public class Main extends Script {
           int statusCode = response.getStatusLine().getStatusCode();
           info(ew, log_level, format("status code=%s", statusCode));
           if (statusCode == HttpStatus.SC_OK) {
+            for (int i = 0; i < coreCnt; i++) {
+              Future<Double> futureDbl = consumerExecutorService.submit(new Consumer(queue, eventQueue, inputName, ew, i));
+              consumerFutures.add(futureDbl);
+            }
+            eventExecutorService.submit(new EventConsumer(eventQueue, ew));
+            
             InputStream instream = response.getEntity().getContent();
 
             double runningEdgeGridTime = System.nanoTime() - startEdgeGrid;

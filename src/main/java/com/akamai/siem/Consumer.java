@@ -55,17 +55,16 @@ public class Consumer implements Callable<Double> {
             Raw raw = mapper.readValue(firstEvent, Raw.class);
             raw.processRaw();
 
-            String payLoad;
             if (raw.getOffset() != null) {
               ew.synchronizedLog(EventWriter.INFO, format("found new offset: %s", raw.getOffset()));
               Main.staticOffset = raw.getOffset();
+            } else {
+              String payLoad = mapper.writeValueAsString(raw);
+              Event event = new Event();
+              event.setStanza(inputName);
+              event.setData(payLoad);
+              this.eventQueue.put(event);
             }
-
-            payLoad = mapper.writeValueAsString(raw);
-            Event event = new Event();
-            event.setStanza(inputName);
-            event.setData(payLoad);
-            this.eventQueue.put(event);
           }
           this.runningEdgeGridTime += System.nanoTime() - startEvent;
         }
