@@ -77,7 +77,6 @@ import com.splunk.modularinput.ValidationDefinition;
 // the getScheme and streamEvents methods, and, if the scheme returned by getScheme had
 // Scheme.setUseExternalValidation(true) called on it, the validateInput method. The user must provide a main
 // method since static methods can't be inherited in Java. However, the main is very simple.
-// test
 public class Main extends Script {
   public static ObjectMapper mapper;
   public static String staticOffset = "";
@@ -113,17 +112,32 @@ public class Main extends Script {
         .setSerializationInclusion(JsonInclude.Include.NON_NULL);
   }
 
+  // Start of the program (Splunk defined standard)
+  // new modular input script
   public static void main(String[] args) throws Exception {
     new Main().run(args);
   }
 
+  // Create scheme (data input) and set initial configuration
   @Override
   public Scheme getScheme() {
 
     Scheme scheme = new Scheme("AKAMAI SIEM API");
     scheme.setDescription("Security Information and Event Management");
+
+    // Perform validation logic. Override the validateInput method if this is true
     scheme.setUseExternalValidation(true);
+
+    // Specifies whether this modular input kind will send events to Splunk as XML
+    // (the default and preferred value) or plain text.
     scheme.setStreamingMode(StreamingMode.XML);
+
+    /*
+        setUseSingleInstance(true) - the scheme will pass all the instances of the modular input
+        to a single instance of the script.
+        Otherwise, Splunk Enterprise starts a Java Virtual Machine (JVM)
+        for each instance of the input.
+     */
     scheme.setUseSingleInstance(false);
 
     createSchemeArgument(scheme, "hostname", EMPTY, true, true, DataType.STRING);
@@ -145,186 +159,186 @@ public class Main extends Script {
   public void validateInput(final ValidationDefinition definition, final EventWriter ew) throws Exception {
     String methodName = "validateInput";
     try {
-      HttpService.setSslSecurityProtocol(SSLSecurityProtocol.TLSv1_2);
-      ew.synchronizedLog(INFO, format("In %s, begin validate input", methodName));
-      ew.synchronizedLog(INFO, format("In %s, stanza name = %s", methodName, definition.getName()));
+        // Sets the SSL security protocol of this service.
+        HttpService.setSslSecurityProtocol(SSLSecurityProtocol.TLSv1_2);
 
-      String log_level = getInputValueAsString(definition, "log_level");
-      ew.synchronizedLog(INFO, format("In %s, log_level=%s", methodName, log_level));
+        // The EventWriter class encapsulates writing events and error messages to Splunk from a modular input.
+        // synchronizedLog(severity, errorMessage)
+        ew.synchronizedLog(INFO, format("In %s, begin validate input", methodName));
+        ew.synchronizedLog(INFO, format("In %s, stanza name = %s", methodName, definition.getName()));
 
-      String session_key = definition.getSessionKey();
-      // debug(ew, log_level, format("In %s, session_key=%s", methodName, session_key));
+        // Get log level from all input values provided by us as string (client_Secret, access_token etc.)
+        String log_level = getInputValueAsString(definition, "log_level");
+        ew.synchronizedLog(INFO, format("In %s, log_level=%s", methodName, log_level));
 
-      String hostname = getInputValueAsString(definition, "hostname");
-      // debug(ew, log_level, format("hostname=%s", hostname));
+        // Gets a session key providing access to splunkd's REST API on this host.
+        String session_key = definition.getSessionKey();
 
-      if ((hostname != null) && !hostname.isEmpty()) {
-        hostname = "https://" + hostname;
-      }
+        String hostname = getInputValueAsString(definition, "hostname");
 
-      String security_configuration_id_s_ = getInputValueAsString(definition, "security_configuration_id_s_");
-      // debug(ew, log_level, format("security_configuration_id_s_=%s", security_configuration_id_s_));
-
-      String client_token = getInputValueAsString(definition, "client_token");
-      // debug(ew, log_level, format("client_token=%s", client_token));
-
-      String client_secret = getInputValueAsString(definition, "client_secret");
-
-      String access_token = getInputValueAsString(definition, "access_token");
-      // debug(ew, log_level, format("access_token=%s", access_token));
-
-      String initial_epoch_time = getInputValueAsString(definition, "initial_epoch_time");
-      debug(ew, log_level, format("initial_epoch_time=%s", initial_epoch_time));
-
-      String final_epoch_time = getInputValueAsString(definition, "final_epoch_time");
-      debug(ew, log_level, format("final_epoch_time=%s", final_epoch_time));
-
-      String limit = getInputValueAsString(definition, "limit");
-      debug(ew, log_level, format("limit=%s", limit));
-
-      String proxy_host = getInputValueAsString(definition, "proxy_host");
-      // debug(ew, log_level, format("proxy_host=%s", proxy_host));
-
-      String proxy_port = getInputValueAsString(definition, "proxy_port");
-      // debug(ew, log_level, format("proxy_port=%s", proxy_port));
-
-      debug(ew, log_level, "Begin Log Level validation");
-      List<String> errors = new ArrayList<String>();
-      if (!isValidLogLevel(log_level)) {
-        errors.add(format("%s is not a valid Log Level", log_level));
-        log_level = EventWriter.INFO;
-      }
-      debug(ew, log_level, "Log Level validation complete");
-
-      debug(ew, log_level, "Begin Hostname validation");
-      if (!isValidHostName(hostname)) {
-        errors.add(format("%s is an invalid Hostname", hostname));
-      }
-      debug(ew, log_level, "Hostname validation complete");
-
-      debug(ew, log_level, "Begin Security Configuration ID(s) validation");
-      validateSecurityConfigIds(security_configuration_id_s_, errors);
-      debug(ew, log_level, "Security Configuration ID(s) validation complete");
-
-      debug(ew, log_level, "Begin Client Token validation");
-      if (isEmpty(client_token)) {
-        errors.add("Please specify a valid Client Token");
-      }
-      debug(ew, log_level, "Client Token validation complete");
-
-      debug(ew, log_level, "Begin Client Secret validation");
-      if (isEmpty(client_secret)) {
-        errors.add("Please specify a valid Client Secret");
-      } else {
-        logMessage(ew, EventWriter.INFO, log_level,
-            format("In %s, Service connect to TA-Akamai_SIEM app ", methodName));
-        Service akamaiSplunkService = getServiceForApp(session_key, "TA-Akamai_SIEM");
-
-        debug(ew, log_level, "get password service...");
-        PasswordCollection passwordCollection = akamaiSplunkService.getPasswords();
-        debug(ew, log_level, "construct stanza...");
-        // debug(ew, log_level, key);
-
-        String clearClientSecret = readClearPassword(definition.getName(), "client_secret", passwordCollection);
-        String clearClientToken = readClearPassword(definition.getName(), "client_token", passwordCollection);
-        String clearAccessToken = readClearPassword(definition.getName(), "access_token", passwordCollection);
-
-        if (_MASK_.equalsIgnoreCase(client_secret)) {
-          if (isEmpty(clearClientSecret)) {
-            errors.add("Please specify a valid Client Secret");
-          }
+        // Add https in the hostname
+        if ((hostname != null) && !hostname.isEmpty()) {
+            hostname = "https://" + hostname;
         }
 
-        if (_MASK_.equalsIgnoreCase(client_token)) {
-          if (isEmpty(clearClientToken)) {
+        String security_configuration_id_s_ = getInputValueAsString(definition, "security_configuration_id_s_");
+        String client_token = getInputValueAsString(definition, "client_token");
+        String client_secret = getInputValueAsString(definition, "client_secret");
+        String access_token = getInputValueAsString(definition, "access_token");
+        String initial_epoch_time = getInputValueAsString(definition, "initial_epoch_time");
+        debug(ew, log_level, format("initial_epoch_time=%s", initial_epoch_time));
+        String final_epoch_time = getInputValueAsString(definition, "final_epoch_time");
+        debug(ew, log_level, format("final_epoch_time=%s", final_epoch_time));
+        String limit = getInputValueAsString(definition, "limit");
+        debug(ew, log_level, format("limit=%s", limit));
+        String proxy_host = getInputValueAsString(definition, "proxy_host");
+        String proxy_port = getInputValueAsString(definition, "proxy_port");
+        debug(ew, log_level, "Begin Log Level validation");
+
+        List<String> errors = new ArrayList<String>();
+
+        if (!isValidLogLevel(log_level)) {
+            errors.add(format("%s is not a valid Log Level", log_level));
+            log_level = EventWriter.INFO;
+        }
+        debug(ew, log_level, "Log Level validation complete");
+
+        debug(ew, log_level, "Begin Hostname validation");
+        if (!isValidHostName(hostname)) {
+            errors.add(format("%s is an invalid Hostname", hostname));
+        }
+        debug(ew, log_level, "Hostname validation complete");
+
+        debug(ew, log_level, "Begin Security Configuration ID(s) validation");
+        validateSecurityConfigIds(security_configuration_id_s_, errors);
+        debug(ew, log_level, "Security Configuration ID(s) validation complete");
+
+        debug(ew, log_level, "Begin Client Token validation");
+        if (isEmpty(client_token)) {
             errors.add("Please specify a valid Client Token");
-          }
         }
+        debug(ew, log_level, "Client Token validation complete");
 
-        if (_MASK_.equalsIgnoreCase(access_token)) {
-          if (isEmpty(clearAccessToken)) {
-            errors.add("Please specify a valid Access Token");
-          }
-        }
-        debug(ew, log_level, "password validation complete");
-      }
-      debug(ew, log_level, "Client Secret validation complete");
-
-      debug(ew, log_level, "Begin Access Token validation");
-      if (isEmpty(access_token)) {
-        errors.add("Please specify a valid Access Token");
-      }
-      debug(ew, log_level, "Access Token validation complete ");
-
-      debug(ew, log_level, "Begin Initial Epoch Time validation");
-      validateEpochTime(initial_epoch_time, errors);
-      debug(ew, log_level, "Initial Epoch Time validation complete ");
-
-      debug(ew, log_level, "Begin Final Epoch Time validation");
-      validateEpochTime(final_epoch_time, errors);
-      debug(ew, log_level, "Final Epoch Time validation complete");
-
-      // Initial Epoch time is null or empty but final is not
-      if (isEmpty(initial_epoch_time) && !isEmpty(final_epoch_time)) {
-        errors.add(format("Initial Epoch Time must be specified"));
-      }
-
-      // final > initial
-      if (!isEmpty(initial_epoch_time) && !isEmpty(final_epoch_time)) {
-        long start = Long.valueOf(initial_epoch_time);
-        long end = Long.valueOf(initial_epoch_time);
-        if (end < start) {
-          errors.add(format("Final Epoch Time must be gearter than Initial Epoch Time"));
-        }
-      }
-
-      debug(ew, log_level, "Begin Limit validation");
-      if (!isEmpty(limit)) {
-        if (isDigits(limit)) {
-          Integer value = Integer.valueOf(limit);
-          if (value <= 0 || value > _AKAMAI_API_MAX_LIMIT_) {
-            errors.add(format("%s is not valid Limit", limit));
-          }
+        debug(ew, log_level, "Begin Client Secret validation");
+        if (isEmpty(client_secret)) {
+            errors.add("Please specify a valid Client Secret");
         } else {
-          errors.add(format("%s is not valid Limit", limit));
-        }
-      }
-      debug(ew, log_level, "Limit validation complete");
+            logMessage(ew, EventWriter.INFO, log_level, format("In %s, Service connect to TA-Akamai_SIEM app ", methodName));
 
-      debug(ew, log_level, "Begin Proxy Host/Port validation");
-      if (!isEmpty(proxy_host)) {
-        if (isValidHostName(proxy_host)) {
-          errors.add(format("%s is an invalid Proxy Host", proxy_host));
-        }
+            // Get service for Akamai's app
+            // The Service class represents a Splunk service instance at a given address (host:port),
+            // accessed using the http or https protocol scheme.
+            // TODO: How do we provide TA-Akamai_SIEM?
+            Service akamaiSplunkService = getServiceForApp(session_key, "TA-Akamai_SIEM");
 
-        if (!isEmpty(proxy_port)) {
-          if (isDigits(proxy_port)) {
-            Integer value = Integer.valueOf(proxy_port);
-            if (value <= 0) {
-              errors.add(format("%s is not valid Proxy Port", proxy_port));
+            debug(ew, log_level, "get password service...");
+
+            // Returns a collection of passwords. This collection is used for managing secure credentials.
+            PasswordCollection passwordCollection = akamaiSplunkService.getPasswords();
+            debug(ew, log_level, "construct stanza...");
+
+            // Get client_Secret, client_toke and access_token
+            String clearClientSecret = readClearPassword(definition.getName(), "client_secret", passwordCollection);
+            String clearClientToken = readClearPassword(definition.getName(), "client_token", passwordCollection);
+            String clearAccessToken = readClearPassword(definition.getName(), "access_token", passwordCollection);
+
+            if (_MASK_.equalsIgnoreCase(client_secret)) {
+              if (isEmpty(clearClientSecret)) {
+                errors.add("Please specify a valid Client Secret");
+              }
             }
-          } else {
-            errors.add(format("%s is not valid Proxy Port", proxy_port));
-          }
-        }
-      }
-      debug(ew, log_level, "Proxy Host/port validation complete");
 
-      if (errors.size() > 0) {
-        String formattedErrors = join(",", errors);
-        ew.synchronizedLog(EventWriter.INFO, format("infoMsg= In %s, found errors : %s", methodName, formattedErrors));
-        throw new InputException(formattedErrors);
-      }
-      debug(ew, log_level, "Error Checking complete");
-      info(ew, log_level, "done validation");
+            if (_MASK_.equalsIgnoreCase(client_token)) {
+              if (isEmpty(clearClientToken)) {
+                errors.add("Please specify a valid Client Token");
+              }
+            }
+
+            if (_MASK_.equalsIgnoreCase(access_token)) {
+              if (isEmpty(clearAccessToken)) {
+                errors.add("Please specify a valid Access Token");
+              }
+            }
+            debug(ew, log_level, "password validation complete");
+        }
+        debug(ew, log_level, "Client Secret validation complete");
+
+        debug(ew, log_level, "Begin Access Token validation");
+        if (isEmpty(access_token)) {
+            errors.add("Please specify a valid Access Token");
+        }
+        debug(ew, log_level, "Access Token validation complete ");
+
+        debug(ew, log_level, "Begin Initial Epoch Time validation");
+        validateEpochTime(initial_epoch_time, errors);
+        debug(ew, log_level, "Initial Epoch Time validation complete ");
+
+        debug(ew, log_level, "Begin Final Epoch Time validation");
+        validateEpochTime(final_epoch_time, errors);
+        debug(ew, log_level, "Final Epoch Time validation complete");
+
+        // Initial Epoch time is null or empty but final is not
+        if (isEmpty(initial_epoch_time) && !isEmpty(final_epoch_time)) {
+            errors.add(format("Initial Epoch Time must be specified"));
+        }
+
+        // final > initial
+        if (!isEmpty(initial_epoch_time) && !isEmpty(final_epoch_time)) {
+            long start = Long.valueOf(initial_epoch_time);
+            long end = Long.valueOf(initial_epoch_time);
+            if (end < start) {
+              errors.add(format("Final Epoch Time must be gearter than Initial Epoch Time"));
+            }
+        }
+
+        debug(ew, log_level, "Begin Limit validation");
+        if (!isEmpty(limit)) {
+            if (isDigits(limit)) {
+                Integer value = Integer.valueOf(limit);
+                if (value <= 0 || value > _AKAMAI_API_MAX_LIMIT_) {
+                    errors.add(format("%s is not valid Limit", limit));
+                }
+            } else {
+                errors.add(format("%s is not valid Limit", limit));
+            }
+        }
+        debug(ew, log_level, "Limit validation complete");
+
+        debug(ew, log_level, "Begin Proxy Host/Port validation");
+        if (!isEmpty(proxy_host)) {
+            if (isValidHostName(proxy_host)) {
+                errors.add(format("%s is an invalid Proxy Host", proxy_host));
+            }
+
+            if (!isEmpty(proxy_port)) {
+                if (isDigits(proxy_port)) {
+                    Integer value = Integer.valueOf(proxy_port);
+
+                    if (value <= 0) {
+                      errors.add(format("%s is not valid Proxy Port", proxy_port));
+                    }
+                } else {
+                    errors.add(format("%s is not valid Proxy Port", proxy_port));
+              }
+            }
+        }
+        debug(ew, log_level, "Proxy Host/port validation complete");
+
+        if (errors.size() > 0) {
+            String formattedErrors = join(",", errors);
+            ew.synchronizedLog(EventWriter.INFO, format("infoMsg= In %s, found errors : %s", methodName, formattedErrors));
+            throw new InputException(formattedErrors);
+        }
+        debug(ew, log_level, "Error Checking complete");
+        info(ew, log_level, "done validation");
     } catch (InputException iex) {
-      logException(ew, iex);
-      throw (iex);
+        logException(ew, iex);
+        throw (iex);
     } catch (Exception ex) {
-      logException(ew, ex);
-      throw (ex);
+        logException(ew, ex);
+        throw (ex);
     }
-  }
+}
 
   @Override
   public void streamEvents(InputDefinition inputDefinition, EventWriter ew)
@@ -481,7 +495,7 @@ public class Main extends Script {
               consumerFutures.add(futureDbl);
             }
             eventExecutorService.submit(new EventConsumer(eventQueue, ew));
-            
+
             InputStream instream = response.getEntity().getContent();
 
             double runningEdgeGridTime = System.nanoTime() - startEdgeGrid;
@@ -740,15 +754,15 @@ public class Main extends Script {
     }
   }
 
-  private boolean isValidHostName(final String hostname) {
-    String[] schemes = {"http", "https"};
-    UrlValidator urlValidator = new UrlValidator(schemes);
-    if (!hostname.isEmpty()) {
-      return urlValidator.isValid(hostname);
-    } else {
-      return false;
+    private boolean isValidHostName(final String hostname) {
+        String[] schemes = {"http", "https"};
+        UrlValidator urlValidator = new UrlValidator(schemes);
+        if (!hostname.isEmpty()) {
+            return urlValidator.isValid(hostname);
+        } else {
+            return false;
+        }
     }
-  }
 
   private void validateSecurityConfigIds(final String configIds, final List<String> errors) {
     if ((configIds != null) && (configIds.isEmpty() == false)) {
@@ -917,16 +931,18 @@ public class Main extends Script {
     }
   }
 
-  private Service getServiceForApp(final String session_key, final String app) {
-    ServiceArgs akamaiServiceArgs = new ServiceArgs();
-    akamaiServiceArgs.setHost("localhost");
-    akamaiServiceArgs.setPort(8089);
-    akamaiServiceArgs.setScheme("https");
-    akamaiServiceArgs.setToken("Splunk " + session_key);
-    akamaiServiceArgs.setApp(app);
-    Service akamaiSplunkService = Service.connect(akamaiServiceArgs);
-    return akamaiSplunkService;
-  }
+    // KINJAL DONE: Establishes a connection to a Splunk service and Get service for Akamai's app
+    // Creates a new Service instance and authenticates the session using credentials passed in from the args map
+    private Service getServiceForApp(final String session_key, final String app) {
+        ServiceArgs akamaiServiceArgs = new ServiceArgs();
+        akamaiServiceArgs.setHost("localhost");
+        akamaiServiceArgs.setPort(8089);
+        akamaiServiceArgs.setScheme("https");
+        akamaiServiceArgs.setToken("Splunk " + session_key);
+        akamaiServiceArgs.setApp(app);
+        Service akamaiSplunkService = Service.connect(akamaiServiceArgs);
+        return akamaiSplunkService;
+    }
 
   private String getInputValueAsString(final Map<String, Parameter> inputMap, final String key) {
     Parameter parameter = inputMap.get(key);
