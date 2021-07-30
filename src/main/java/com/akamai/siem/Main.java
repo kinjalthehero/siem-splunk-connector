@@ -77,6 +77,7 @@ import com.splunk.modularinput.ValidationDefinition;
 // the getScheme and streamEvents methods, and, if the scheme returned by getScheme had
 // Scheme.setUseExternalValidation(true) called on it, the validateInput method. The user must provide a main
 // method since static methods can't be inherited in Java. However, the main is very simple.
+// test
 public class Main extends Script {
   public static ObjectMapper mapper;
   public static String staticOffset = "";
