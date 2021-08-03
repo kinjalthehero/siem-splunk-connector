@@ -2,141 +2,140 @@ package com.akamai.siem;
 
 public class HttpMessage {
 
-  private String requestId;
-  private String start;
-  private String protocol;
-  private String method;
-  private String host;
-  private String port;
-  private String path;
-  private String query;
-  private String requestHeaders;
-  private String status;
-  private String bytes;
-  private String responseHeaders;
-  private String tls;
+    private String requestId;
+    private String start;
+    private String protocol;
+    private String method;
+    private String host;
+    private String port;
+    private String path;
+    private String query;
+    private String requestHeaders;
+    private String status;
+    private String bytes;
+    private String responseHeaders;
+    private String tls;
 
-  public void processRaw() {
-    this.requestHeaders = decode(this.requestHeaders);
-    this.responseHeaders = decode(this.responseHeaders);
-    this.query = decode(this.query);
-  }
-
-  /*
-   * URL decode
-   */
-  private String decode(String s) {
-    String urlDecodeValue = s;
-    try {
-      if (urlDecodeValue != null) {
-        urlDecodeValue = java.net.URLDecoder.decode(s, "UTF-8");
-      }
-    } catch (Exception ex) {
+    // Only URL decode http headers
+    public void processRaw() {
+        this.requestHeaders = decode(this.requestHeaders);
+        this.responseHeaders = decode(this.responseHeaders);
+        this.query = decode(this.query);
     }
-    return (urlDecodeValue);
-  }
 
-  public String getRequestId() {
-    return requestId;
-  }
+    // Only URL decode. NO Base 64 decode
+    private String decode(String s) {
+        String urlDecodeValue = s;
+        try {
+            if (urlDecodeValue != null) {
+                urlDecodeValue = java.net.URLDecoder.decode(s, "UTF-8");
+            }
+        } catch (Exception ex) {
+        }
+        return (urlDecodeValue);
+    }
 
-  public void setRequestId(String requestId) {
-    this.requestId = requestId;
-  }
+    public String getRequestId() {
+        return requestId;
+    }
 
-  public String getStart() {
-    return start;
-  }
+    public void setRequestId(String requestId) {
+        this.requestId = requestId;
+    }
 
-  public void setStart(String start) {
-    this.start = start;
-  }
+    public String getStart() {
+        return start;
+    }
 
-  public String getProtocol() {
-    return protocol;
-  }
+    public void setStart(String start) {
+        this.start = start;
+    }
 
-  public void setProtocol(String protocol) {
-    this.protocol = protocol;
-  }
+    public String getProtocol() {
+        return protocol;
+    }
 
-  public String getMethod() {
-    return method;
-  }
+    public void setProtocol(String protocol) {
+        this.protocol = protocol;
+    }
 
-  public void setMethod(String method) {
-    this.method = method;
-  }
+    public String getMethod() {
+        return method;
+    }
 
-  public String getHost() {
-    return host;
-  }
+    public void setMethod(String method) {
+        this.method = method;
+    }
 
-  public void setHost(String host) {
-    this.host = host;
-  }
+    public String getHost() {
+        return host;
+    }
 
-  public String getPort() {
-    return port;
-  }
+    public void setHost(String host) {
+        this.host = host;
+    }
 
-  public void setPort(String port) {
-    this.port = port;
-  }
+    public String getPort() {
+        return port;
+    }
 
-  public String getPath() {
-    return path;
-  }
+    public void setPort(String port) {
+        this.port = port;
+    }
 
-  public void setPath(String path) {
-    this.path = path;
-  }
+    public String getPath() {
+        return path;
+    }
 
-  public String getQuery() {
-    return query;
-  }
+    public void setPath(String path) {
+        this.path = path;
+    }
 
-  public void setQuery(String query) {
-    this.query = query;
-  }
+    public String getQuery() {
+        return query;
+    }
 
-  public String getRequestHeaders() {
-    return requestHeaders;
-  }
+    public void setQuery(String query) {
+        this.query = query;
+    }
 
-  public void setRequestHeaders(String requestHeaders) {
-    this.requestHeaders = requestHeaders;
-  }
+    public String getRequestHeaders() {
+        return requestHeaders;
+    }
 
-  public String getStatus() {
-    return status;
-  }
+    public void setRequestHeaders(String requestHeaders) {
+        this.requestHeaders = requestHeaders;
+    }
 
-  public void setStatus(String status) {
-    this.status = status;
-  }
+    public String getStatus() {
+        return status;
+    }
 
-  public String getBytes() {
-    return bytes;
-  }
+    public void setStatus(String status) {
+        this.status = status;
+    }
 
-  public void setBytes(String bytes) {
-    this.bytes = bytes;
-  }
+    public String getBytes() {
+        return bytes;
+    }
 
-  public String getResponseHeaders() {
-    return responseHeaders;
-  }
+    public void setBytes(String bytes) {
+        this.bytes = bytes;
+    }
 
-  public void setResponseHeaders(String responseHeaders) {
-    this.responseHeaders = responseHeaders;
-  }
+    public String getResponseHeaders() {
+        return responseHeaders;
+    }
 
-  public String getTls() {
-    return tls;
-  }
+    public void setResponseHeaders(String responseHeaders) {
+        this.responseHeaders = responseHeaders;
+    }
 
-  public void setTls(String tls) {
-    this.tls = tls;
-  }
+    public String getTls() {
+        return tls;
+    }
+
+    public void setTls(String tls) {
+        this.tls = tls;
+    }
 }

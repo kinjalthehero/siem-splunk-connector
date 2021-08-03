@@ -486,6 +486,8 @@ public class Main extends Script {
                             // Submits a value-returning "callable" task for execution and returns a
                             // Future representing the pending results of the task. The
                             // Future's {@code get} method will return the task's result upon successful completion.
+                            // queue: Data to be processed
+                            // eventQueue: Processed data
                             Future<Double> futureDbl = consumerExecutorService.submit(new Consumer(queue, eventQueue, inputName, ew, i));
                             consumerFutures.add(futureDbl);
                         }
@@ -508,9 +510,15 @@ public class Main extends Script {
 
                             String line;
                             Boolean running = true;
+
+                            // Put response in the queue one line at a time till there is no more events
                             while (running) {
                                 long readLineStart = System.nanoTime();
+
+                                // Read the response line by line
                                 line = bufferedreader.readLine();
+
+                                // Time to read one line
                                 runningEdgeGridTime += System.nanoTime() - readLineStart;
 
                                 // Put response data and put it in the BlockingQueue
@@ -522,14 +530,14 @@ public class Main extends Script {
                                 }
                             }
 
+                            // Poison Pill is a known message structure that ends the message exchange
                             for (int i = 0; i < coreCnt; i++) {
                                 queue.put("poisonPill");
                             }
 
                             info(ew, log_level, String.format("awaiting shutdown..."));
 
-                            // make the ExecutorService stop accepting new tasks
-                            // and shut down after all running threads finish their current work:
+                            // shut down after all running threads finish their current work:
                             consumerExecutorService.shutdown();
 
                             try {
@@ -538,13 +546,18 @@ public class Main extends Script {
 
                             }
 
+                            // Time to read the events from the InputStreamReader
                             double consumerRealTime = System.nanoTime() - consumerStart;
 
+                            // Total time taken for all the tasks
                             Double cpuTime = 0.0;
                             for (Future<Double> future : consumerFutures) {
                                 cpuTime += future.get();
                             }
 
+                            // Splunk event
+                            // TODO: What is the use of this code block?
+                            // Poison Pill is a known message structure that ends the message exchange
                             Event poisonPill = new Event();
                             poisonPill.setSourceType("poisonPill");
                             eventQueue.put(poisonPill);
@@ -555,9 +568,9 @@ public class Main extends Script {
 
                             }
 
-                            // info(ew, log_level, String.format("queue size = %d", queue.size()));
                             info(ew, log_level, String.format("termination complete....\n"));
 
+                            // Total time from end to end
                             realTime = System.nanoTime() - start;
                             final int cores = Runtime.getRuntime().availableProcessors();
 
@@ -576,8 +589,6 @@ public class Main extends Script {
 
                     } else {
                         // Not 200 response
-
-
                         String responseData = EntityUtils.toString(response.getEntity());
                         error(ew, log_level, format("status code=%s", statusCode));
                         logAkamaiSIEMServiceFailure(ew, log_level, request, responseData, urlToRequest);
@@ -626,6 +637,7 @@ public class Main extends Script {
         ew.synchronizedLog(EventWriter.INFO, format("infoMsg = %s, end streamEvents", methodName));
     }
 
+    // Get actual info from the data input configuration (client secret, access token etc.)
     private String readClearPassword(String inputStanza, String username, final PasswordCollection passwordCollection) {
         String keyWithReamlm = format("%s:%s:", inputStanza, username);
 
@@ -636,6 +648,7 @@ public class Main extends Script {
         return null;
     }
 
+    // Set individual data input scheme (client_token, access_token etc.)
     private void createSchemeArgument(final Scheme scheme, final String argName, final String argDesc,
                                       final boolean requiredOnCreate, final boolean requiredOnedit, final DataType dataType) {
         Argument argument = new Argument(argName);
@@ -651,7 +664,7 @@ public class Main extends Script {
         return new String(Base64.decodeBase64(value), StandardCharsets.UTF_8);
     }
 
-    // Based on the given values of time, offset and limit, build the OPEN API URL
+    // DONE: Based on the given values of time, offset and limit, build the OPEN API URL
     public static String processQueryString(String initialEpochTime, String finalEpochTime, String offset, String limit) {
 
         String retVal = format(_AKAMAI_API_PARAM_OFFSET_BASED_, offset);
@@ -701,6 +714,7 @@ public class Main extends Script {
 
     }
 
+    // Get the value from the Splunk data input
     private String getInputValueAsString(final ValidationDefinition definition, final String paramName) {
         Parameter parameter = definition.getParameters().get(paramName);
         if (parameter != null) {
@@ -709,6 +723,7 @@ public class Main extends Script {
         return null;
     }
 
+    // Check if the log level is enabled
     public boolean isLogEnabled(final String log_level, final String log_threshold) {
         if (logLevel.containsKey(log_threshold)) {
             int ilogLevel = logLevel.get(log_level);
@@ -720,6 +735,7 @@ public class Main extends Script {
         return false;
     }
 
+    // DONE: Log exception messages
     public static void logException(final EventWriter ew, final Exception ex) {
         StringWriter sw = new StringWriter();
         try (PrintWriter pw = new PrintWriter(sw)) {
@@ -729,24 +745,29 @@ public class Main extends Script {
         }
     }
 
+    // // DONE: Write DEBUG level log message
     private void debug(final EventWriter ew, final String log_threshold, final String message) {
         if (isLogEnabled(DEBUG, log_threshold)) {
             info(ew, log_threshold, message);
         }
     }
 
+    // DONE: Write ERROR level log message
     private void error(final EventWriter ew, final String log_threshold, final String message) {
         logMessage(ew, ERROR, log_threshold, message);
     }
 
+    // DONE: Write WARN level log message
     private void warn(final EventWriter ew, final String log_threshold, final String message) {
         logMessage(ew, WARN, log_threshold, message);
     }
 
+    // DONE: Write INFO level log message
     private void info(final EventWriter ew, final String log_threshold, final String message) {
         logMessage(ew, INFO, log_threshold, message);
     }
 
+    // DONE: Write log message using Splunk
     private void logMessage(final EventWriter ew, final String log_level, final String log_threshold,
                             final String message) {
         if (isLogEnabled(log_level, log_threshold)) {
@@ -754,6 +775,7 @@ public class Main extends Script {
         }
     }
 
+    // DONE: Validate the log level hashmap
     private boolean isValidLogLevel(final String inputLogLevel) {
         if (inputLogLevel != null) {
             return logLevel.keySet().contains(inputLogLevel);
@@ -762,6 +784,7 @@ public class Main extends Script {
         }
     }
 
+    // DONE: Validate host name
     private boolean isValidHostName(final String hostname) {
         String[] schemes = {"http", "https"};
         UrlValidator urlValidator = new UrlValidator(schemes);
@@ -772,6 +795,7 @@ public class Main extends Script {
         }
     }
 
+    // DONE: Validate security config
     private void validateSecurityConfigIds(final String configIds, final List<String> errors) {
         if ((configIds != null) && (configIds.isEmpty() == false)) {
             String[] configsArray = configIds.split(_AKAMAI_API_SECURITY_CONFIG_DELIMITER_);
@@ -783,7 +807,7 @@ public class Main extends Script {
         }
     }
 
-    // API call Failure message
+    // DONE: Log Splunk API call Failure message
     private void handleSplunkRestServiceFailure(final EventWriter ew, String log_level,
                                                 final RequestMessage requestMessage, ResponseMessage response, final String endPoint) throws InputException {
         StringBuilder message = new StringBuilder();
@@ -808,6 +832,7 @@ public class Main extends Script {
         throw new InputException(message.toString());
     }
 
+    // DONE: Log Akamai SIEM service failure message
     private void logAkamaiSIEMServiceFailure(final EventWriter ew, String log_level, final HttpRequest requestMessage,
                                              final String response, final String endPoint) {
         StringBuilder message = new StringBuilder();
@@ -816,7 +841,7 @@ public class Main extends Script {
         error(ew, log_level, message.toString());
     }
 
-    // Get offset, error count etc. from the kv store
+    // DONE: Get offset, error count etc. from the kv store
     private stanza_state getValuesFromKVStore(final EventWriter ew, String log_level, final Service kvStoreService,
                                               final String inputName) throws InputException, IOException {
         info(ew, log_level, format("infoMsg=KV Service get...", ew));
@@ -868,20 +893,27 @@ public class Main extends Script {
         return kvStoreStanza;
     }
 
+    // Update values in KV store with new offset and error count
     private stanza_state updateValuesInKVStore(final EventWriter ew, String log_level, final Service kvStoreService,
                                                final String inputName, final String newOffset, final Integer error_count) throws InputException, IOException {
+
+        // Get stanza values from the kv store ( offset, error count etc.)
         stanza_state kvStoreStanza = getValuesFromKVStore(ew, log_level, kvStoreService, inputName);
 
         if (kvStoreStanza != null) {
 
+            // Error count is 5 or more, clear the offset and the error count to update with the new offset value
             if (kvStoreStanza.error_count >= _AKAMAI_API_MAX_CONSECUTIVE_ERRORS_) {
                 error(ew, log_level, format("infoMsg=%d  consecutive errors.  Clearing offset and error count",
                         _AKAMAI_API_MAX_CONSECUTIVE_ERRORS_));
                 kvStoreStanza.offset = "";
                 kvStoreStanza.error_count = 0;
             } else {
+                // Error count is from 0 to 4
                 kvStoreStanza.offset = newOffset;
-                // For successful request reset the count to 0
+
+                // For successful response, reset the count to 0
+                // For unsuccessful response, increase the error count
                 if (error_count == 0) {
                     kvStoreStanza.error_count = 0;
                 } else {
@@ -891,8 +923,7 @@ public class Main extends Script {
             kvStoreStanza.stanza_change = "0";
             kvStoreStanza.stanza = inputName;
 
-            // debug(ew, log_level, format("kvStoreStanza=%s", gson.toJson(kvStoreStanza)));
-
+            // Write the new kv store stanza (offset value, error count etc.) to the kv store using the API
             RequestMessage requestMessage = new RequestMessage("POST");
             requestMessage.getHeader().put("Content-Type", "application/json");
             requestMessage.setContent(mapper.writeValueAsString(kvStoreStanza));
@@ -909,6 +940,7 @@ public class Main extends Script {
             }
         } else {
 
+            // If kv store stanza is blank, just write to the kv store without error check
             kvStoreStanza = new stanza_state();
             kvStoreStanza._key = "";
             kvStoreStanza.offset = newOffset;
@@ -935,6 +967,7 @@ public class Main extends Script {
         return kvStoreStanza;
     }
 
+    // DONE: Validate epoch time
     public void validateEpochTime(final String epochTime, final List<String> errors) {
         if (!isEmpty(epochTime)) {
             if (isDigits(epochTime)) {
@@ -948,8 +981,8 @@ public class Main extends Script {
         }
     }
 
-    // KINJAL DONE: Establishes a connection to a Splunk service and Get service for Akamai's app
-    // Creates a new Service instance and authenticates the session using credentials passed in from the args map
+    // DONE: Establishes a connection to a Splunk service and Get service for Akamai's app
+    // DONE: Creates a new Service instance and authenticates the session using credentials passed in from the args map
     private Service getServiceForApp(final String session_key, final String app) {
         ServiceArgs akamaiServiceArgs = new ServiceArgs();
         akamaiServiceArgs.setHost("localhost");
@@ -961,6 +994,7 @@ public class Main extends Script {
         return akamaiSplunkService;
     }
 
+    // DONE: Get the value of the key from the HashMap
     private String getInputValueAsString(final Map<String, Parameter> inputMap, final String key) {
         Parameter parameter = inputMap.get(key);
         if (parameter != null) {
@@ -989,7 +1023,7 @@ public class Main extends Script {
         }
 
         public void run() {
-            // info(ew, log_level, "v3");
+
             String methodName = "MyRunnable.run";
             try {
                 HttpService.setSslSecurityProtocol(SSLSecurityProtocol.TLSv1_2);
@@ -1000,7 +1034,7 @@ public class Main extends Script {
 
                 RequestMessage akamaiRequestMessage = new RequestMessage("GET");
                 akamaiRequestMessage.getHeader().put("Content-Type", "application/json");
-                // inputName=TA-Akamai_SIEM://csxcz
+
                 String inputStanza = inputName.replace("TA-Akamai_SIEM://", "");
                 String modInputUrl = format("/servicesNS/nobody/TA-Akamai_SIEM/data/inputs/TA-Akamai_SIEM/%s?output_mode=json",
                         URLEncoder.encode(inputStanza, "UTF-8"));
