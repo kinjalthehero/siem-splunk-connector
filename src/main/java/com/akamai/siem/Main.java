@@ -531,6 +531,7 @@ public class Main extends Script {
                             }
 
                             // Poison Pill is a known message structure that ends the message exchange
+                            // If there are 8 cores, put poisonPill 8 times in the queue
                             for (int i = 0; i < coreCnt; i++) {
                                 queue.put("poisonPill");
                             }
